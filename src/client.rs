@@ -1,34 +1,25 @@
 use darling::FromMeta;
-use proc_macro2::Span;
 use syn::{self, DeriveInput};
-
-enum AttributeArg {
-    BaseUrl(syn::LitStr),
-    Ident(syn::Ident),
-}
-
-impl syn::parse::Parse for AttributeArg {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let peeked = input.lookahead1();
-        if peeked.peek(syn::Ident) {
-            Ok(AttributeArg::Ident(input.parse()?))
-        } else if peeked.peek(syn::LitStr) {
-            Ok(AttributeArg::BaseUrl(input.parse()?))
-        } else {
-            Err(syn::Error::new(input.span(), "Expected baseurl  or env variable name  \nSamples:\n\t \"http(s)://baseurl.com\" or BASE_URL"))
-        }
-    }
-}
 
 pub(crate) fn gen_client_impl(
     attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    if let Err(err) = dotenv::dotenv() {
-        return syn::Error::new(Span::call_site(), "Can't find .env file. Place a .env file at project path.").into_compile_error().into();
-    }
-    
     let attr_args = syn::parse_macro_input!(attr as AttributeArg);
+
+    if let AttributeArg::Ident(env_var) = &attr_args {
+        if let Err(_) = dotenv::dotenv() {
+            return syn::Error::new(
+                env_var.span(),
+                format!(
+                    "Can't find .env file to load {}.\nPlace a .env file in project path.",
+                    env_var.to_string()
+                ),
+            )
+            .into_compile_error()
+            .into();
+        }
+    }
 
     // Parse the annotated item (struct or enum)
     let DeriveInput { ident, data: _, .. } = syn::parse_macro_input!(input as DeriveInput);
@@ -43,7 +34,7 @@ pub(crate) fn gen_client_impl(
         AttributeArg::BaseUrl(url) => {
             let url = url.value();
             quote::quote! { std::borrow::Cow::Borrowed(#url) }
-        }
+        },
         AttributeArg::Ident(ident) => {
             let key = ident.to_string();
 
@@ -108,14 +99,6 @@ pub(crate) fn gen_client_impl(
                 })
             }
 
-            ///
-            /// For lower level access to the
-            /// inner client for advanced
-            /// configuration
-            pub fn get_client_builder_mut(&'a mut self) -> &'a mut reqwest::ClientBuilder {
-                &mut self.builder
-            }
-
         }
 
         impl<'a> #ident<'a> {
@@ -141,6 +124,10 @@ pub(crate) fn gen_client_impl(
                 self.auth = auth;
                 self
             }
+
+            pub fn set_client(&mut self, new_client: reqwest::Client) {
+                self.client = new_client;
+            }
         }
 
         impl<'a> ask_nicely::client::CanApiClient<'a> for #ident<'a> {
@@ -160,3 +147,22 @@ pub(crate) fn gen_client_impl(
     }
     .into()
 }
+
+enum AttributeArg {
+    BaseUrl(syn::LitStr),
+    Ident(syn::Ident),
+}
+
+impl syn::parse::Parse for AttributeArg {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let peeked = input.lookahead1();
+        if peeked.peek(syn::Ident) {
+            Ok(AttributeArg::Ident(input.parse()?))
+        } else if peeked.peek(syn::LitStr) {
+            Ok(AttributeArg::BaseUrl(input.parse()?))
+        } else {
+            Err(syn::Error::new(input.span(), "Expected baseurl  or env variable name  \nSamples:\n\t \"http(s)://baseurl.com\" or BASE_URL"))
+        }
+    }
+}
+

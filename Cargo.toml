@@ -1,6 +1,6 @@
 [package]
 name = "nicely_macros"
-version = "0.1.0-alpha.1"
+version = "0.1.0-rc.1"
 edition = "2021"
 description = "A macro crate for the ask_nicely crate."
 repository = "https://github.com/didoloan/nicer_macros.git"
@@ -11,9 +11,10 @@ license = "MIT"
 proc-macro=true
 
 [dependencies]
-syn={ version = "2.0.38", features = ["full"] }
-quote = "1.0.33"
-proc-macro2 = "1.0.69"
-darling = "0.20.3"
-url = "2.5.4"
-dotenv = "0.15.0"
+syn = { version = "^2.0.38", features = ["full"] }
+quote = "^1.0.33"
+proc-macro2 = "^1.0.69"
+darling = "^0.20.3"
+url = "^2.5.4"
+dotenv = "^0.15.0"
+winnow = "^0.6.24"
