@@ -8,12 +8,12 @@ pub(crate) fn gen_client_impl(
     let attr_args = syn::parse_macro_input!(attr as AttributeArg);
 
     if let AttributeArg::Ident(env_var) = &attr_args {
-        if let Err(_) = dotenv::dotenv() {
+        if dotenv::dotenv().is_err() {
             return syn::Error::new(
                 env_var.span(),
                 format!(
                     "Can't find .env file to load {}.\nPlace a .env file in project path.",
-                    env_var.to_string()
+                    env_var
                 ),
             )
             .into_compile_error()
@@ -40,7 +40,7 @@ pub(crate) fn gen_client_impl(
 
             match std::env::var(key.trim()) {
                 Ok(base_url) => {
-                    if let Err(_) = url::Url::parse(&base_url) {
+                    if url::Url::parse(&base_url).is_err() {
                         return ::syn::Error::new(
                             ident.span(),
                             "Invalid Url: Not a valid BaseUrl.",

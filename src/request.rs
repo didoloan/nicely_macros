@@ -48,7 +48,7 @@ fn get_body_tokens_with_payload_type(
             let mut flds = body_fields;
 
             let joint_spans: proc_macro2::Span = flds.next().span();
-            while let Some(fld) = flds.next() {
+            for fld in flds {
                 joint_spans.join(fld.span());
             }
             return Err(syn::Error::new(
@@ -71,7 +71,7 @@ fn get_body_tokens_with_payload_type(
         None => (quote::quote! { self }, quote::quote! { #body_type_full }),
     };
 
-    let body_tokens = match get_body_tokens(data_type, body_field, &method) {
+    let body_tokens = match get_body_tokens(data_type, body_field, method) {
         Ok(bdy_tkns) => bdy_tkns,
         Err(e) => {
             return Err(e);
@@ -90,9 +90,9 @@ fn parse_params(path: &syn::LitStr) -> Result<Vec<(String, proc_macro2::Span)>, 
             if x.starts_with("{") && x.ends_with("}") {
                 let part = &x[1..x.len() - 1];
 
-                return Some((part.to_string(), path.span()));
+                Some((part.to_string(), path.span()))
             } else {
-                return None;
+                None
             }
         })
         .collect())
@@ -172,10 +172,10 @@ fn get_path_tokens(
     fields: &syn::Fields,
     struct_name: &str,
 ) -> Result<proc_macro2::TokenStream, syn::Error> {
-    let path_fields_str_span = match parse_params(&path) {
+    let path_fields_str_span = match parse_params(path) {
         Ok(path_fields_str_span) => {
             for (name, span) in &path_fields_str_span {
-                if let false = field_name_exists(fields, name) {
+                if !field_name_exists(fields, name) {
                     return Err(syn::Error::new(
                         *span,
                         format!("Field {} doesnt exist in {}.", name, struct_name),
@@ -227,7 +227,7 @@ fn get_method_tokens(
 
 fn process_generics(generics: &syn::Generics) -> Result<syn::Generics, syn::Error> {
 
-    while let Some(type_param) = generics.type_params().next() {
+    if let Some(type_param) = generics.type_params().next() {
         return Err(syn::Error::new(
             type_param.span(),
             "Generic types not allowed as request objects.",
